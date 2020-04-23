@@ -53,7 +53,9 @@ const (
 	defaultThriftBinaryBindEndpoint    = "localhost:6832"
 	defaultAgentRemoteSamplingHTTPPort = 5778
 
-	samplingStrategiesFileViperKey = "sampling.strategies-file"
+	samplingStrategiesFileViperKey    = "sampling.strategies-file"
+	samplingAgentHttpHostPortViperKey = "http-server.host-port"
+	gRPCReporterHostPortViperKey      = "reporter.grpc.host-port"
 )
 
 // Factory is the factory for Jaeger receiver.
@@ -104,18 +106,27 @@ func (f *Factory) CustomUnmarshaler() component.CustomUnmarshaler {
 
 // CreateDefaultConfig creates the default configuration for Jaeger receiver.
 func (f *Factory) CreateDefaultConfig() configmodels.Receiver {
+	// default is ""
 	strategyFile := f.Viper.GetString(samplingStrategiesFileViperKey)
-	var remoteSampling *RemoteSamplingConfig
-	if strategyFile != "" {
-		remoteSampling = &RemoteSamplingConfig{
-			StrategyFile: strategyFile,
+	// default is :5778
+	agentHttpHostPort := f.Viper.GetString(samplingAgentHttpHostPortViperKey)
+	// default is
+	gRPCReporterHostPort := f.Viper.GetString(gRPCReporterHostPortViperKey)
+	var samplingConf *RemoteSamplingConfig
+	if strategyFile != "" || agentHttpHostPort != "" || gRPCReporterHostPort != "" {
+		samplingConf = &RemoteSamplingConfig{
+			StrategyFile:  strategyFile,
+			HostEndpoint:  agentHttpHostPort,
+			FetchEndpoint: gRPCReporterHostPort,
 		}
 	}
+	fmt.Println("\n\n ----> Sampling config")
+	fmt.Println(samplingConf)
 	return &Config{
 		TypeVal:        typeStr,
 		NameVal:        typeStr,
 		Protocols:      map[string]*receiver.SecureReceiverSettings{},
-		RemoteSampling: remoteSampling,
+		RemoteSampling: samplingConf,
 	}
 }
 
