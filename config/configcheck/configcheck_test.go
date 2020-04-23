@@ -20,6 +20,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/viper"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -29,7 +31,7 @@ import (
 )
 
 func TestValidateConfigFromFactories_Success(t *testing.T) {
-	factories, err := defaultcomponents.Components()
+	factories, err := defaultcomponents.Components(viper.New())
 	require.NoError(t, err)
 
 	err = ValidateConfigFromFactories(factories)
@@ -37,7 +39,7 @@ func TestValidateConfigFromFactories_Success(t *testing.T) {
 }
 
 func TestValidateConfigFromFactories_Failure(t *testing.T) {
-	factories, err := defaultcomponents.Components()
+	factories, err := defaultcomponents.Components(viper.New())
 	require.NoError(t, err)
 
 	// Add a factory returning config not following pattern to force error.

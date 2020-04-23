@@ -16,6 +16,8 @@
 package defaultcomponents
 
 import (
+	"github.com/spf13/viper"
+
 	"github.com/open-telemetry/opentelemetry-collector/component"
 	"github.com/open-telemetry/opentelemetry-collector/component/componenterror"
 	"github.com/open-telemetry/opentelemetry-collector/config"
@@ -47,7 +49,7 @@ import (
 
 // Components returns the default set of components used by the
 // OpenTelemetry collector.
-func Components() (
+func Components(v *viper.Viper) (
 	config.Factories,
 	error,
 ) {
@@ -63,7 +65,7 @@ func Components() (
 	}
 
 	receivers, err := component.MakeReceiverFactoryMap(
-		&jaegerreceiver.Factory{},
+		&jaegerreceiver.Factory{Viper: v},
 		&zipkinreceiver.Factory{},
 		&prometheusreceiver.Factory{},
 		&opencensusreceiver.Factory{},

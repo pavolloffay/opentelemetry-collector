@@ -39,7 +39,7 @@ import (
 )
 
 func TestApplication_Start(t *testing.T) {
-	factories, err := defaultcomponents.Components()
+	factories, err := defaultcomponents.Components(viper.New())
 	require.NoError(t, err)
 
 	app, err := New(Parameters{Factories: factories, ApplicationStartInfo: ApplicationStartInfo{}})

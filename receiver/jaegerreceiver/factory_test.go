@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/spf13/viper"
+
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
@@ -37,14 +39,14 @@ func TestTypeStr(t *testing.T) {
 }
 
 func TestCreateDefaultConfig(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	assert.NotNil(t, cfg, "failed to create default config")
 	assert.NoError(t, configcheck.ValidateConfig(cfg))
 }
 
 func TestCreateReceiver(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	// have to enable at least one protocol for the jaeger receiver to be created
 	cfg.(*Config).Protocols[protoGRPC], _ = defaultsForProtocol(protoGRPC)
@@ -61,7 +63,7 @@ func TestCreateReceiver(t *testing.T) {
 
 // default ports retrieved from https://www.jaegertracing.io/docs/1.16/deployment/
 func TestCreateDefaultGRPCEndpoint(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -74,7 +76,7 @@ func TestCreateDefaultGRPCEndpoint(t *testing.T) {
 }
 
 func TestCreateTLSGPRCEndpoint(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -93,7 +95,7 @@ func TestCreateTLSGPRCEndpoint(t *testing.T) {
 }
 
 func TestCreateInvalidHTTPEndpoint(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -106,7 +108,7 @@ func TestCreateInvalidHTTPEndpoint(t *testing.T) {
 }
 
 func TestCreateInvalidThriftBinaryEndpoint(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -119,7 +121,7 @@ func TestCreateInvalidThriftBinaryEndpoint(t *testing.T) {
 }
 
 func TestCreateInvalidThriftCompactEndpoint(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -132,7 +134,7 @@ func TestCreateInvalidThriftCompactEndpoint(t *testing.T) {
 }
 
 func TestDefaultAgentRemoteSamplingEndpointAndPort(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -147,7 +149,7 @@ func TestDefaultAgentRemoteSamplingEndpointAndPort(t *testing.T) {
 }
 
 func TestAgentRemoteSamplingEndpoint(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -165,7 +167,7 @@ func TestAgentRemoteSamplingEndpoint(t *testing.T) {
 }
 
 func TestCreateNoPort(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -180,7 +182,7 @@ func TestCreateNoPort(t *testing.T) {
 }
 
 func TestCreateLargePort(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -195,7 +197,7 @@ func TestCreateLargePort(t *testing.T) {
 }
 
 func TestCreateInvalidHost(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -210,7 +212,7 @@ func TestCreateInvalidHost(t *testing.T) {
 }
 
 func TestCreateNoProtocols(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -222,7 +224,7 @@ func TestCreateNoProtocols(t *testing.T) {
 }
 
 func TestThriftBinaryBadPort(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -238,7 +240,7 @@ func TestThriftBinaryBadPort(t *testing.T) {
 }
 
 func TestThriftCompactBadPort(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -254,7 +256,7 @@ func TestThriftCompactBadPort(t *testing.T) {
 }
 
 func TestRemoteSamplingConfigPropagation(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 
@@ -277,7 +279,7 @@ func TestRemoteSamplingConfigPropagation(t *testing.T) {
 }
 
 func TestRemoteSamplingFileRequiresGRPC(t *testing.T) {
-	factory := Factory{}
+	factory := Factory{Viper: viper.New()}
 	cfg := factory.CreateDefaultConfig()
 	rCfg := cfg.(*Config)
 

@@ -19,6 +19,8 @@ package main
 import (
 	"log"
 
+	"github.com/spf13/viper"
+
 	"github.com/open-telemetry/opentelemetry-collector/internal/version"
 	"github.com/open-telemetry/opentelemetry-collector/service"
 	"github.com/open-telemetry/opentelemetry-collector/service/defaultcomponents"
@@ -31,7 +33,8 @@ func main() {
 		}
 	}
 
-	factories, err := defaultcomponents.Components()
+	v := &viper.Viper{}
+	factories, err := defaultcomponents.Components(v)
 	handleErr("Failed to build default components", err)
 
 	info := service.ApplicationStartInfo{

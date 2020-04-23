@@ -18,6 +18,8 @@ import (
 	"path"
 	"testing"
 
+	"github.com/spf13/viper"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,7 +32,7 @@ func TestLoadConfig(t *testing.T) {
 	factories, err := config.ExampleComponents()
 	assert.Nil(t, err)
 
-	factory := &Factory{}
+	factory := &Factory{Viper: viper.New()}
 	factories.Receivers[typeStr] = factory
 	cfg, err := config.LoadConfigFile(t, path.Join(".", "testdata", "config.yaml"), factories)
 
@@ -152,7 +154,7 @@ func TestFailedLoadConfig(t *testing.T) {
 	factories, err := config.ExampleComponents()
 	assert.Nil(t, err)
 
-	factory := &Factory{}
+	factory := &Factory{Viper: viper.New()}
 	factories.Receivers[typeStr] = factory
 	_, err = config.LoadConfigFile(t, path.Join(".", "testdata", "bad_proto_config.yaml"), factories)
 	assert.EqualError(t, err, `error reading settings for receiver type "jaeger": unknown Jaeger protocol badproto`)

@@ -93,6 +93,10 @@ type Parameters struct {
 	// If it is not provided the default factory will be used.
 	// The default factory loads the configuration specified as a command line flag.
 	ConfigFactory ConfigFactory
+	// Viper instance used by the service.
+	// Viper is used to pass additional configuration (e.g. provided as flags, env. vars) to services.
+	// This parameter is optional and if it is missing an instance from config.NewViper() is used.
+	Viper *viper.Viper
 }
 
 // ConfigFactory creates config.
@@ -115,9 +119,12 @@ func fileLoaderConfigFactory(v *viper.Viper, factories config.Factories) (*confi
 func New(params Parameters) (*Application, error) {
 	app := &Application{
 		info:      params.ApplicationStartInfo,
-		v:         config.NewViper(),
+		v:         params.Viper,
 		readyChan: make(chan struct{}),
 		factories: params.Factories,
+	}
+	if app.v == nil {
+		app.v = config.NewViper()
 	}
 
 	factory := params.ConfigFactory

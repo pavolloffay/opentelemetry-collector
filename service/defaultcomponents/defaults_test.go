@@ -17,8 +17,9 @@
 package defaultcomponents
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/spf13/viper"
 
 	"github.com/stretchr/testify/assert"
 
@@ -50,13 +51,14 @@ import (
 )
 
 func TestDefaultComponents(t *testing.T) {
+	v := viper.New()
 	expectedExtensions := map[string]component.ExtensionFactory{
 		"health_check": &healthcheckextension.Factory{},
 		"pprof":        &pprofextension.Factory{},
 		"zpages":       &zpagesextension.Factory{},
 	}
 	expectedReceivers := map[string]component.ReceiverFactoryBase{
-		"jaeger":      &jaegerreceiver.Factory{},
+		"jaeger":      &jaegerreceiver.Factory{Viper: v},
 		"zipkin":      &zipkinreceiver.Factory{},
 		"prometheus":  &prometheusreceiver.Factory{},
 		"opencensus":  &opencensusreceiver.Factory{},
@@ -83,8 +85,7 @@ func TestDefaultComponents(t *testing.T) {
 		"otlp":       &otlpexporter.Factory{},
 	}
 
-	factories, err := Components()
-	fmt.Println(err)
+	factories, err := Components(v)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedExtensions, factories.Extensions)
 	assert.Equal(t, expectedReceivers, factories.Receivers)

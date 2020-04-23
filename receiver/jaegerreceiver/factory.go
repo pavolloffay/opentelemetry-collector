@@ -52,10 +52,13 @@ const (
 	defaultThriftCompactBindEndpoint   = "localhost:6831"
 	defaultThriftBinaryBindEndpoint    = "localhost:6832"
 	defaultAgentRemoteSamplingHTTPPort = 5778
+
+	samplingStrategiesFileViperKey = "sampling.strategies-file"
 )
 
 // Factory is the factory for Jaeger receiver.
 type Factory struct {
+	Viper *viper.Viper
 }
 
 // Type gets the type of the Receiver config created by this factory.
@@ -101,10 +104,18 @@ func (f *Factory) CustomUnmarshaler() component.CustomUnmarshaler {
 
 // CreateDefaultConfig creates the default configuration for Jaeger receiver.
 func (f *Factory) CreateDefaultConfig() configmodels.Receiver {
+	strategyFile := f.Viper.GetString(samplingStrategiesFileViperKey)
+	var remoteSampling *RemoteSamplingConfig
+	if strategyFile != "" {
+		remoteSampling = &RemoteSamplingConfig{
+			StrategyFile: strategyFile,
+		}
+	}
 	return &Config{
-		TypeVal:   typeStr,
-		NameVal:   typeStr,
-		Protocols: map[string]*receiver.SecureReceiverSettings{},
+		TypeVal:        typeStr,
+		NameVal:        typeStr,
+		Protocols:      map[string]*receiver.SecureReceiverSettings{},
+		RemoteSampling: remoteSampling,
 	}
 }
 
