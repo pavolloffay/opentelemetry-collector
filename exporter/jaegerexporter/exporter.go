@@ -80,7 +80,7 @@ func (s *protoGRPCSender) pushTraceData(
 	for _, batch := range batches {
 		_, err = s.client.PostSpans(
 			ctx,
-			&jaegerproto.PostSpansRequest{Batch: *batch})
+			&jaegerproto.PostSpansRequest{Batch: *batch}, grpc.WaitForReady(true))
 		if err != nil {
 			return td.SpanCount() - sentSpans, err
 		}

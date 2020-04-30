@@ -56,6 +56,11 @@ type GRPCSettings struct {
 	// The keepalive parameters for client gRPC. See grpc.WithKeepaliveParams
 	// (https://godoc.org/google.golang.org/grpc#WithKeepaliveParams).
 	KeepaliveParameters *KeepaliveConfig `mapstructure:"keepalive"`
+
+	// MaxRetry sets maximum number of retries.
+	MaxRetry uint `mapstructure:"max_retry"`
+	// RetryWait waits fixed interval between retries.
+	RetryWait time.Duration `mapstructure:"retry_wait"`
 }
 
 // KeepaliveConfig exposes the keepalive.ClientParameters to be used by the exporter.
@@ -94,6 +99,10 @@ func GrpcSettingsToDialOptions(settings GRPCSettings) ([]grpc.DialOption, error)
 	} else {
 		opts = append(opts, grpc.WithInsecure())
 	}
+
+	//opts = append(opts, grpc.WithUnaryInterceptor(
+	//	grpc_retry.UnaryClientInterceptor(grpc_retry.WithMax(settings.MaxRetry),
+	//		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(settings.RetryWait)))))
 
 	if settings.KeepaliveParameters != nil {
 		keepAliveOption := grpc.WithKeepaliveParams(keepalive.ClientParameters{

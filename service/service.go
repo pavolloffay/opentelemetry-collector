@@ -113,6 +113,7 @@ func fileLoaderConfigFactory(v *viper.Viper, factories config.Factories) (*confi
 
 // New creates and returns a new instance of Application.
 func New(params Parameters) (*Application, error) {
+	fmt.Println("\n\n\n creating new service")
 	app := &Application{
 		info:      params.ApplicationStartInfo,
 		v:         config.NewViper(),
