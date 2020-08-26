@@ -266,17 +266,8 @@ func loadExtensions(v *viper.Viper, factories map[configmodels.Type]component.Ex
 		extensionCfg.SetType(typeStr)
 		extensionCfg.SetName(fullName)
 
-		// Unmarshal only the subconfig for this exporter.
-		componentConfig, err := ViperSubExact(extensionsConfig, key)
-		if err != nil {
+		if err := unmarshallExtension(extensionsConfig, extensionCfg, factory); err != nil {
 			return nil, err
-		}
-
-		// Now that the default config struct is created we can Unmarshal into it
-		// and it will apply user-defined config on top of the default.
-		unm := unmarshaler(factory)
-		if err := unm(componentConfig, extensionCfg); err != nil {
-			return nil, errorUnmarshalError(extensionsKeyName, fullName, err)
 		}
 
 		if extensions[fullName] != nil {
@@ -326,11 +317,8 @@ func LoadReceiver(componentConfig *viper.Viper, typeStr configmodels.Type, fullN
 	receiverCfg.SetType(typeStr)
 	receiverCfg.SetName(fullName)
 
-	// Now that the default config struct is created we can Unmarshal into it
-	// and it will apply user-defined config on top of the default.
-	unm := unmarshaler(factory)
-	if err := unm(componentConfig, receiverCfg); err != nil {
-		return nil, errorUnmarshalError(receiversKeyName, fullName, err)
+	if err := unmarshallReceiver(componentConfig, receiverCfg, factory); err != nil {
+		return nil, err
 	}
 
 	return receiverCfg, nil
@@ -364,16 +352,8 @@ func loadReceivers(v *viper.Viper, factories map[configmodels.Type]component.Rec
 			return nil, errorUnknownType(receiversKeyName, typeStr, fullName)
 		}
 
-		// Unmarshal only the subconfig for this exporter.
-		componentConfig, err := ViperSubExact(receiversConfig, key)
+		receiverCfg, err := LoadReceiver(receiversConfig, typeStr, fullName, factory)
 		if err != nil {
-			return nil, err
-		}
-
-		receiverCfg, err := LoadReceiver(componentConfig, typeStr, fullName, factory)
-
-		if err != nil {
-			// LoadReceiver already wraps the error.
 			return nil, err
 		}
 
@@ -419,17 +399,8 @@ func loadExporters(v *viper.Viper, factories map[configmodels.Type]component.Exp
 		exporterCfg.SetType(typeStr)
 		exporterCfg.SetName(fullName)
 
-		// Unmarshal only the subconfig for this exporter.
-		componentConfig, err := ViperSubExact(exportersConfig, key)
-		if err != nil {
+		if err := unmarshallExporter(exportersConfig, exporterCfg, factory); err != nil {
 			return nil, err
-		}
-
-		// Now that the default config struct is created we can Unmarshal into it
-		// and it will apply user-defined config on top of the default.
-		unm := unmarshaler(factory)
-		if err := unm(componentConfig, exporterCfg); err != nil {
-			return nil, errorUnmarshalError(exportersKeyName, fullName, err)
 		}
 
 		if exporters[fullName] != nil {
@@ -440,6 +411,54 @@ func loadExporters(v *viper.Viper, factories map[configmodels.Type]component.Exp
 	}
 
 	return exporters, nil
+}
+
+func unmarshallReceiver(receiversConfig *viper.Viper, receiver configmodels.Receiver, factory component.Factory) error {
+	componentConfig, err := ViperSubExact(receiversConfig, receiver.Name())
+	if err != nil {
+		return err
+	}
+	unm := unmarshaler(factory)
+	if err := unm(componentConfig, receiver); err != nil {
+		return errorUnmarshalError(receiversKeyName, receiver.Name(), err)
+	}
+	return nil
+}
+
+func unmarshallProcessor(processorsConfig *viper.Viper, processor configmodels.Processor, factory component.Factory) error {
+	componentConfig, err := ViperSubExact(processorsConfig, processor.Name())
+	if err != nil {
+		return err
+	}
+	unm := unmarshaler(factory)
+	if err := unm(componentConfig, processor); err != nil {
+		return errorUnmarshalError(processorsKeyName, processor.Name(), err)
+	}
+	return nil
+}
+
+func unmarshallExporter(exportersConfig *viper.Viper, exporter configmodels.Exporter, factory component.Factory) error {
+	componentConfig, err := ViperSubExact(exportersConfig, exporter.Name())
+	if err != nil {
+		return err
+	}
+	unm := unmarshaler(factory)
+	if err := unm(componentConfig, exporter); err != nil {
+		return errorUnmarshalError(exportersKeyName, exporter.Name(), err)
+	}
+	return nil
+}
+
+func unmarshallExtension(extensionsConfig *viper.Viper, extension configmodels.Extension, factory component.Factory) error {
+	componentConfig, err := ViperSubExact(extensionsConfig, extension.Name())
+	if err != nil {
+		return err
+	}
+	unm := unmarshaler(factory)
+	if err := unm(componentConfig, extension); err != nil {
+		return errorUnmarshalError(extensionsKeyName, extension.Name(), err)
+	}
+	return nil
 }
 
 func loadProcessors(v *viper.Viper, factories map[configmodels.Type]component.ProcessorFactory) (configmodels.Processors, error) {
@@ -475,17 +494,8 @@ func loadProcessors(v *viper.Viper, factories map[configmodels.Type]component.Pr
 		processorCfg.SetType(typeStr)
 		processorCfg.SetName(fullName)
 
-		// Unmarshal only the subconfig for this processor.
-		componentConfig, vsErr := ViperSubExact(processorsConfig, key)
-		if vsErr != nil {
-			return nil, vsErr
-		}
-
-		// Now that the default config struct is created we can Unmarshal into it
-		// and it will apply user-defined config on top of the default.
-		unm := unmarshaler(factory)
-		if err := unm(componentConfig, processorCfg); err != nil {
-			return nil, errorUnmarshalError(processorsKeyName, fullName, err)
+		if err := unmarshallProcessor(processorsConfig, processorCfg, factory); err != nil {
+			return nil, err
 		}
 
 		if processors[fullName] != nil {
@@ -800,4 +810,52 @@ func ViperSubExact(v *viper.Viper, key string) (*viper.Viper, error) {
 		code: errInvalidSubConfig,
 		msg:  fmt.Sprintf("unexpected sub-config value kind for key:%s value:%v kind:%v)", key, data, reflect.TypeOf(data).Kind()),
 	}
+}
+
+// ApplyChange applies changes from viper to config.
+func ApplyChange(v *viper.Viper, config *configmodels.Config, factories component.Factories) error {
+	receiversConfig, err := ViperSubExact(v, receiversKeyName)
+	if err != nil {
+		return err
+	}
+	expandEnvConfig(receiversConfig)
+	for _, receiver := range config.Receivers {
+		// unmarshall accepts factory as the last parameter,
+		// however the custom unmarshallers do validation (e.g. endpoint specified)
+		// which causes issues since as the flags do not contain full config only properties to override
+		if err = unmarshallReceiver(receiversConfig, receiver, receiver); err != nil {
+			return err
+		}
+	}
+	processorsConfig, err := ViperSubExact(v, processorsKeyName)
+	if err != nil {
+		return nil
+	}
+	expandEnvConfig(processorsConfig)
+	for _, processor := range config.Processors {
+		if err = unmarshallProcessor(processorsConfig, processor, processor); err != nil {
+			return err
+		}
+	}
+	exportersConfig, err := ViperSubExact(v, exportersKeyName)
+	if err != nil {
+		return nil
+	}
+	expandEnvConfig(exportersConfig)
+	for _, exp := range config.Exporters {
+		if err = unmarshallExporter(exportersConfig, exp, exp); err != nil {
+			return err
+		}
+	}
+	extensionsConfig, err := ViperSubExact(v, extensionsKeyName)
+	if err != nil {
+		return nil
+	}
+	expandEnvConfig(extensionsConfig)
+	for _, ext := range config.Extensions {
+		if err := unmarshallExtension(extensionsConfig, ext, ext); err != nil {
+			return err
+		}
+	}
+	return nil
 }

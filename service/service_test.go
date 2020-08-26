@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/common/expfmt"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -137,7 +138,7 @@ func TestApplication_StartAsGoRoutine(t *testing.T) {
 
 	params := Parameters{
 		ApplicationStartInfo: componenttest.TestApplicationStartInfo(),
-		ConfigFactory: func(v *viper.Viper, factories component.Factories) (*configmodels.Config, error) {
+		ConfigFactory: func(v *viper.Viper, command *cobra.Command, factories component.Factories) (*configmodels.Config, error) {
 			return constructMimumalOpConfig(t, factories), nil
 		},
 		Factories: factories,
@@ -412,7 +413,7 @@ func createExampleApplication(t *testing.T) *Application {
 
 	app, err := New(Parameters{
 		Factories: factories,
-		ConfigFactory: func(v *viper.Viper, factories component.Factories) (c *configmodels.Config, err error) {
+		ConfigFactory: func(v *viper.Viper, cmd *cobra.Command, factories component.Factories) (c *configmodels.Config, err error) {
 			config := &configmodels.Config{
 				Receivers: map[string]configmodels.Receiver{
 					string(exampleReceiverFactory.Type()): exampleReceiverFactory.CreateDefaultConfig(),

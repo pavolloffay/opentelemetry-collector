@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -580,4 +581,154 @@ func loadConfigFile(t *testing.T, fileName string, factories component.Factories
 		return nil, err
 	}
 	return cfg, ValidateConfig(cfg, zap.NewNop())
+}
+
+func TestApplyChanges_errs(t *testing.T) {
+	factories, err := componenttest.ExampleComponents()
+	require.NoError(t, err)
+	v := viper.New()
+	t.Run("empty_config", func(t *testing.T) {
+		require.NoError(t, ApplyChange(v, &configmodels.Config{}, factories))
+	})
+	t.Run("err_receiver_should_be_pointer", func(t *testing.T) {
+		cfg := &configmodels.Config{
+			Receivers: configmodels.Receivers{
+				"foo": invalidEntity{},
+			},
+		}
+		require.Error(t, ApplyChange(v, cfg, factories))
+	})
+	t.Run("err_processor_should_be_pointer", func(t *testing.T) {
+		cfg := &configmodels.Config{
+			Processors: configmodels.Processors{
+				"foo": invalidEntity{},
+			},
+		}
+		require.Error(t, ApplyChange(v, cfg, factories))
+	})
+	t.Run("err_exporter_should_be_pointer", func(t *testing.T) {
+		cfg := &configmodels.Config{
+			Exporters: configmodels.Exporters{
+				"foo": invalidEntity{},
+			},
+		}
+		require.Error(t, ApplyChange(v, cfg, factories))
+	})
+	t.Run("err_extension_should_be_pointer", func(t *testing.T) {
+		cfg := &configmodels.Config{
+			Extensions: configmodels.Extensions{
+				"foo": invalidEntity{},
+			},
+		}
+		require.Error(t, ApplyChange(v, cfg, factories))
+	})
+}
+
+func TestApplyConfig(t *testing.T) {
+	factories, err := componenttest.ExampleComponents()
+	require.NoError(t, err)
+	v := viper.New()
+	v.Set("receivers.test.property", "receiver_val")
+	// arrays are overridden
+	v.Set("receivers.test.arr", "val1,val2")
+	// maps are joined
+	v.Set("receivers.test.map.key1", "val1")
+	v.Set("receivers.test.map.key2", "val2")
+	v.Set("receivers.test/foo.property", "receiver_foo_val")
+	v.Set("processors.test.property", "processor_val")
+	v.Set("exporters.test.property", "exporter_val")
+	v.Set("extensions.test.property", "extension_val")
+
+	cfg := &configmodels.Config{
+		Receivers: configmodels.Receivers{
+			"test": &testEntity{
+				OtherProperty: "remains_here",
+				Arr:           []string{"does_not_remain_here"},
+				Map:           map[string]string{"remains_here": "val"},
+			},
+			"test/foo": &testEntity{
+				name: "foo",
+			},
+		},
+		Processors: configmodels.Processors{
+			"test": &testEntity{},
+		},
+		Exporters: configmodels.Exporters{
+			"test": &testEntity{},
+		},
+		Extensions: configmodels.Extensions{
+			"test": &testEntity{},
+		},
+	}
+	require.NoError(t, ApplyChange(v, cfg, factories))
+	assert.Equal(t, &configmodels.Config{
+		Receivers: configmodels.Receivers{
+			"test": &testEntity{
+				Property:      "receiver_val",
+				OtherProperty: "remains_here",
+				Arr:           []string{"val1", "val2"},
+				Map:           map[string]string{"remains_here": "val", "key1": "val1", "key2": "val2"},
+			},
+			"test/foo": &testEntity{
+				name:     "foo",
+				Property: "receiver_foo_val",
+			},
+		},
+		Processors: configmodels.Processors{
+			"test": &testEntity{
+				Property: "processor_val",
+			},
+		},
+		Exporters: configmodels.Exporters{
+			"test": &testEntity{
+				Property: "exporter_val",
+			},
+		},
+		Extensions: configmodels.Extensions{
+			"test": &testEntity{
+				Property: "extension_val",
+			},
+		},
+	}, cfg)
+}
+
+type testEntity struct {
+	name          string
+	Property      string            `mapstructure:"property"`
+	OtherProperty string            `mapstructure:"other_property"`
+	Arr           []string          `mapstructure:"arr"`
+	Map           map[string]string `mapstructure:"map"`
+}
+
+var _ configmodels.NamedEntity = (*testEntity)(nil)
+
+func (i *testEntity) Type() configmodels.Type {
+	return "test"
+}
+func (i *testEntity) SetType(typeStr configmodels.Type) {
+}
+func (i *testEntity) Name() string {
+	if i.name == "" {
+		return "test"
+	}
+	return "test/" + i.name
+}
+func (i *testEntity) SetName(name string) {
+	i.name = name
+}
+
+type invalidEntity struct {
+}
+
+var _ configmodels.NamedEntity = (*invalidEntity)(nil)
+
+func (i invalidEntity) Type() configmodels.Type {
+	return ""
+}
+func (i invalidEntity) SetType(typeStr configmodels.Type) {
+}
+func (i invalidEntity) Name() string {
+	return ""
+}
+func (i invalidEntity) SetName(name string) {
 }
