@@ -505,6 +505,15 @@ func generateTraceDataOneSpanNoResourceWithTraceState() pdata.Traces {
 	return td
 }
 
+func generateTraceDataOneSpanNoResourceWithInstrumentationLibrary() pdata.Traces {
+	td := generateTraceDataOneSpanNoResource()
+	library := td.ResourceSpans().At(0).InstrumentationLibrarySpans().At(0).InstrumentationLibrary()
+	library.InitEmpty()
+	library.SetName("io.opentelemetry")
+	library.SetVersion("1.0")
+	return td
+}
+
 func generateProtoSpan() *model.Span {
 	return &model.Span{
 		TraceID: model.NewTraceID(
@@ -565,6 +574,79 @@ func generateProtoSpan() *model.Span {
 			},
 		},
 	}
+}
+
+func generateProtoSpanWithInstrumentationLibrary() *model.Span {
+	return &model.Span{
+		TraceID: model.NewTraceID(
+			binary.BigEndian.Uint64([]byte{0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8}),
+			binary.BigEndian.Uint64([]byte{0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF, 0x80}),
+		),
+		SpanID:        model.NewSpanID(binary.BigEndian.Uint64([]byte{0xAF, 0xAE, 0xAD, 0xAC, 0xAB, 0xAA, 0xA9, 0xA8})),
+		OperationName: "operationA",
+		StartTime:     testSpanStartTime,
+		Duration:      testSpanEndTime.Sub(testSpanStartTime),
+		Logs: []model.Log{
+			{
+				Timestamp: testSpanEventTime,
+				Fields: []model.KeyValue{
+					{
+						Key:   tracetranslator.TagMessage,
+						VType: model.ValueType_STRING,
+						VStr:  "event-with-attr",
+					},
+					{
+						Key:   "span-event-attr",
+						VType: model.ValueType_STRING,
+						VStr:  "span-event-attr-val",
+					},
+				},
+			},
+			{
+				Timestamp: testSpanEventTime,
+				Fields: []model.KeyValue{
+					{
+						Key:    "attr-int",
+						VType:  model.ValueType_INT64,
+						VInt64: 123,
+					},
+				},
+			},
+		},
+		Tags: []model.KeyValue{
+			{
+				Key:   tracetranslator.TagSpanKind,
+				VType: model.ValueType_STRING,
+				VStr:  string(tracetranslator.OpenTracingSpanKindClient),
+			},
+			{
+				Key:    tracetranslator.TagStatusCode,
+				VType:  model.ValueType_INT64,
+				VInt64: tracetranslator.OCCancelled,
+			},
+			{
+				Key:   tracetranslator.TagError,
+				VBool: true,
+				VType: model.ValueType_BOOL,
+			},
+			{
+				Key:   tracetranslator.TagStatusMsg,
+				VType: model.ValueType_STRING,
+				VStr:  "status-cancelled",
+			},
+			{
+				Key:   tracetranslator.TagInstrumentationName,
+				VType: model.ValueType_STRING,
+				VStr:  "io.opentelemetry",
+			},
+			{
+				Key:   tracetranslator.TagInstrumentationVersion,
+				VType: model.ValueType_STRING,
+				VStr:  "1.0",
+			},
+		},
+	}
+
 }
 
 func generateProtoSpanWithTraceState() *model.Span {

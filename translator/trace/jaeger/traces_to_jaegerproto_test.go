@@ -305,6 +305,20 @@ func TestInternalTracesToJaegerProto(t *testing.T) {
 			},
 			err: nil,
 		},
+
+		{
+			name: "instrumentation_library",
+			td:   generateTraceDataOneSpanNoResourceWithInstrumentationLibrary(),
+			jb: model.Batch{
+				Process: &model.Process{
+					ServiceName: tracetranslator.ResourceNotSet,
+				},
+				Spans: []*model.Span{
+					generateProtoSpanWithInstrumentationLibrary(),
+				},
+			},
+			err: nil,
+		},
 	}
 
 	for _, test := range tests {

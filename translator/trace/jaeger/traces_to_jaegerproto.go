@@ -79,7 +79,6 @@ func resourceSpansToJaegerProto(rs pdata.ResourceSpans) (*model.Batch, error) {
 			continue
 		}
 
-		// TODO: Handle instrumentation library name and version.
 		spans := ils.Spans()
 		for j := 0; j < spans.Len(); j++ {
 			span := spans.At(j)
@@ -91,6 +90,7 @@ func resourceSpansToJaegerProto(rs pdata.ResourceSpans) (*model.Batch, error) {
 			if err != nil {
 				return nil, err
 			}
+			addInstrumentationLibrary(jSpan, ils.InstrumentationLibrary())
 			if jSpan != nil {
 				jSpans = append(jSpans, jSpan)
 			}
@@ -100,6 +100,19 @@ func resourceSpansToJaegerProto(rs pdata.ResourceSpans) (*model.Batch, error) {
 	batch.Spans = jSpans
 
 	return batch, nil
+}
+
+func addInstrumentationLibrary(span *model.Span, library pdata.InstrumentationLibrary) {
+	if library.IsNil() {
+		return
+	}
+
+	if library.Name() != "" {
+		span.Tags = append(span.Tags, model.String(tracetranslator.TagInstrumentationName, library.Name()))
+	}
+	if library.Version() != "" {
+		span.Tags = append(span.Tags, model.String(tracetranslator.TagInstrumentationVersion, library.Version()))
+	}
 }
 
 func resourceToJaegerProtoProcess(resource pdata.Resource) *model.Process {
