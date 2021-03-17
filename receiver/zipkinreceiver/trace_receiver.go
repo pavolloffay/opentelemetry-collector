@@ -67,7 +67,7 @@ type ZipkinReceiver struct {
 	stopOnce  sync.Once
 	server    *http.Server
 	config    *Config
-	b3 b3.B3
+	b3        b3.B3
 }
 
 var _ http.Handler = (*ZipkinReceiver)(nil)
@@ -82,7 +82,7 @@ func New(config *Config, nextConsumer consumer.TracesConsumer) (*ZipkinReceiver,
 		nextConsumer: nextConsumer,
 		instanceName: config.Name(),
 		config:       config,
-		b3: b3.B3{},
+		b3:           b3.B3{},
 	}
 	return zr, nil
 }
@@ -343,12 +343,12 @@ func (zr *ZipkinReceiver) extCapResponseCapture(ctx context.Context, w http.Resp
 }
 
 func createAttributes(r *http.Request) map[string]pdata.AttributeValue {
-	attrs := make(map[string]pdata.AttributeValue, len(r.Header) + 2)
+	attrs := make(map[string]pdata.AttributeValue, len(r.Header)+2)
 	attrs["traceableai.merge-data"] = pdata.NewAttributeValueString("ext_cap")
 
 	for k, v := range r.Header {
 		if len(v) > 0 {
-			attrs["http.response.header." + strings.ToLower(k)] = pdata.NewAttributeValueString(v[0])
+			attrs["http.response.header."+strings.ToLower(k)] = pdata.NewAttributeValueString(v[0])
 		}
 	}
 	bodyBytes, err := ioutil.ReadAll(r.Body)
