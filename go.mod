@@ -51,6 +51,9 @@ require (
 	github.com/uber/jaeger-lib v2.4.0+incompatible
 	github.com/xdg-go/scram v0.0.0-20180814205039-7eeb5667e42c
 	go.opencensus.io v0.23.0
+	go.opentelemetry.io/contrib/propagators v0.18.0
+	go.opentelemetry.io/otel v0.18.0
+	go.opentelemetry.io/otel/trace v0.18.0
 	go.uber.org/atomic v1.7.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c

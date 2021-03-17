@@ -599,3 +599,59 @@ func TestReceiverConvertsStringsToTypes(t *testing.T) {
 		break
 	}
 }
+
+func TestExtCapEndpoint(t *testing.T) {
+	cfg := &Config{
+		ReceiverSettings: configmodels.ReceiverSettings{
+			NameVal: zipkinReceiverName,
+		},
+		HTTPServerSettings: confighttp.HTTPServerSettings{
+			Endpoint: "",
+		},
+		ParseStringTags: true,
+	}
+
+	sink := &consumertest.TracesSink{}
+	zr, err := New(cfg, sink)
+	require.NoError(t, err)
+
+	t.Run("valid data", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/ext_cap/response", bytes.NewBuffer([]byte(`{"foo": "bar"}`)))
+		r.Header.Add("content-type", "application/json")
+		r.Header.Add("foo", "bar")
+		r.Header.Add("x-b3-sampled", "1")
+		r.Header.Add("x-b3-traceid", "4bf92f3577b34da6a3ce929d0e0e4736")
+		r.Header.Add("x-b3-spanid", "00f067aa0ba902b7")
+
+		req := httptest.NewRecorder()
+		zr.ServeHTTP(req, r)
+		assert.Equal(t, 204, req.Code)
+
+		traces := sink.AllTraces()
+		assert.Equal(t, 1, len(traces))
+		trace := traces[0]
+		assert.Equal(t, 1, trace.SpanCount())
+		span := trace.ResourceSpans().At(0).InstrumentationLibrarySpans().At(0).Spans().At(0)
+		assert.Equal(t, "ext_cap/response", span.Name())
+		fooAttr, ok := span.Attributes().Get("http.response.header.foo")
+		require.True(t, ok)
+		assert.Equal(t, "bar", fooAttr.StringVal())
+	})
+
+	sink.Reset()
+	t.Run("span not sampled", func(t *testing.T) {
+		r := httptest.NewRequest("POST", "/ext_cap/response", bytes.NewBuffer([]byte(`{"foo": "bar"}`)))
+		r.Header.Add("content-type", "application/json")
+		r.Header.Add("foo", "bar")
+		r.Header.Add("x-b3-sampled", "0")
+		r.Header.Add("x-b3-traceid", "4bf92f3577b34da6a3ce929d0e0e4736")
+		r.Header.Add("x-b3-spanid", "00f067aa0ba902b7")
+
+		req := httptest.NewRecorder()
+		zr.ServeHTTP(req, r)
+		assert.Equal(t, 200, req.Code)
+
+		traces := sink.AllTraces()
+		assert.Equal(t, 0, len(traces))
+	})
+}

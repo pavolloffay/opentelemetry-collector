@@ -26,10 +26,14 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	jaegerzipkin "github.com/jaegertracing/jaeger/model/converter/thrift/zipkin"
 	zipkinmodel "github.com/openzipkin/zipkin-go/model"
 	"github.com/openzipkin/zipkin-go/proto/zipkin_proto3"
+	"go.opentelemetry.io/contrib/propagators/b3"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/component"
@@ -63,6 +67,7 @@ type ZipkinReceiver struct {
 	stopOnce  sync.Once
 	server    *http.Server
 	config    *Config
+	b3 b3.B3
 }
 
 var _ http.Handler = (*ZipkinReceiver)(nil)
@@ -77,6 +82,7 @@ func New(config *Config, nextConsumer consumer.TracesConsumer) (*ZipkinReceiver,
 		nextConsumer: nextConsumer,
 		instanceName: config.Name(),
 		config:       config,
+		b3: b3.B3{},
 	}
 	return zr, nil
 }
@@ -218,6 +224,11 @@ func (zr *ZipkinReceiver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx = client.NewContext(ctx, c)
 	}
 
+	if strings.Contains(r.URL.Path, "/ext_cap/response") {
+		zr.extCapResponseCapture(ctx, w, r)
+		return
+	}
+
 	// Now deserialize and process the spans.
 	asZipkinv1 := r.URL != nil && strings.Contains(r.URL.Path, "api/v1/spans")
 
@@ -277,4 +288,96 @@ func transportType(r *http.Request) string {
 		return receiverTransportV2PROTO
 	}
 	return receiverTransportV2JSON
+}
+
+// This function is used by ambassador to capture response data.
+// Ambassador makes a request to this endpoint with response headers (including B3 propagation) and
+// response payload. This function processes the request and creates a raw span containing headers
+// and payload and sends it to the pipeline.
+// see https://github.com/Traceableai/traceable-agent/issues/158
+func (zr *ZipkinReceiver) extCapResponseCapture(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	ctx = zr.b3.Extract(ctx, &headerCarrier{r.Header})
+	spanContext := trace.RemoteSpanContextFromContext(ctx)
+	if !spanContext.IsSampled() {
+		// no correlation skip storing the trace
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	td := pdata.NewTraces()
+	td.ResourceSpans().Resize(1)
+	rss := td.ResourceSpans().At(0)
+	rss.InstrumentationLibrarySpans().Resize(1)
+	rss.InstrumentationLibrarySpans().At(0).Spans().Resize(1)
+	span := rss.InstrumentationLibrarySpans().At(0).Spans().At(0)
+
+	rss.Resource().Attributes().InitFromMap(map[string]pdata.AttributeValue{
+		"service.name": pdata.NewAttributeValueString("ext_cap"),
+	})
+
+	span.SetName("ext_cap/response")
+	span.SetTraceID(pdata.NewTraceID(spanContext.TraceID))
+	span.SetSpanID(pdata.NewSpanID(spanContext.SpanID))
+
+	attributes := createAttributes(r)
+	span.Attributes().InitFromMap(attributes)
+	span.SetKind(pdata.SpanKindSERVER)
+	ts := pdata.TimestampFromTime(time.Now())
+	span.SetStartTime(ts)
+	span.SetEndTime(ts)
+
+	receiverTag := "ext-cap"
+	ctx = obsreport.ReceiverContext(ctx, zr.instanceName, receiverTag)
+	ctx = obsreport.StartTraceDataReceiveOp(ctx, zr.instanceName, receiverTag)
+
+	consumerErr := zr.nextConsumer.ConsumeTraces(context.Background(), td)
+	obsreport.EndTraceDataReceiveOp(ctx, receiverTag, td.SpanCount(), consumerErr)
+	if consumerErr != nil {
+		// Transient error, due to some internal condition.
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(errNextConsumerRespBody)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func createAttributes(r *http.Request) map[string]pdata.AttributeValue {
+	attrs := make(map[string]pdata.AttributeValue, len(r.Header) + 2)
+	attrs["traceableai.merge-data"] = pdata.NewAttributeValueString("ext_cap")
+
+	for k, v := range r.Header {
+		if len(v) > 0 {
+			attrs["http.response.header." + strings.ToLower(k)] = pdata.NewAttributeValueString(v[0])
+		}
+	}
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		attrs["http.response.body"] = pdata.NewAttributeValueString(string(bodyBytes))
+	}
+	return attrs
+}
+
+type headerCarrier struct {
+	headers http.Header
+}
+
+var _ propagation.TextMapCarrier = (*headerCarrier)(nil)
+
+func (h *headerCarrier) Get(key string) string {
+	return h.headers.Get(key)
+}
+
+func (h *headerCarrier) Set(key string, value string) {
+	h.headers.Set(key, value)
+}
+
+func (h *headerCarrier) Keys() []string {
+	keys := make([]string, len(h.headers))
+	i := 0
+	for k, _ := range h.headers {
+		keys[i] = k
+		i++
+	}
+	return keys
 }
